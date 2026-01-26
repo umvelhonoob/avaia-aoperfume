@@ -11,9 +11,6 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- html2pdf.js Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
     <!-- Fontes -->
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
@@ -22,7 +19,8 @@
         body { font-family: 'Lato', sans-serif; background-color: #FFFBF0; color: #1B3B36; }
         .font-serif { font-family: 'Cinzel', serif; }
         
-        /* Sistema de Estrelas Estilizado Ayra */
+        /* Sistema de Estrelas */
+        .star-rating { display: flex; flex-direction: row-reverse; }
         .star-rating input { display: none; }
         .star-rating label { cursor: pointer; font-size: 1.5rem; color: #d1d5db; transition: all 0.3s ease; padding: 0 2px; }
         .star-rating input:checked ~ label,
@@ -43,28 +41,16 @@
             background-color: rgba(27, 59, 54, 0.03);
         }
 
-        input::placeholder, textarea::placeholder { color: #ccc; font-size: 11px; letter-spacing: 0.1em; }
-
-        /* Estilos específicos para o PDF */
-        .pdf-page-break {
-            page-break-before: always;
-        }
-        
-        /* Evita que uma amostra seja cortada entre duas páginas */
-        .sample-section {
-            break-inside: avoid;
-            page-break-inside: avoid;
-        }
-
-        @media print {
-            .no-print { display: none !important; }
+        .loading-overlay {
+            background: rgba(255,251,240,0.9);
+            backdrop-filter: blur(4px);
         }
     </style>
 </head>
 <body class="antialiased">
 
-    <div id="capture-area">
-        <!-- Navegação Estilo Ayra -->
+    <div id="app-root">
+        <!-- Navegação -->
         <nav class="py-8 border-b border-black/5">
             <div class="container mx-auto px-6 flex justify-center">
                 <div class="flex flex-col items-center">
@@ -83,31 +69,36 @@
             </header>
 
             <form id="perfumeForm" class="space-y-12">
-                <!-- As amostras serão injetadas aqui via JavaScript -->
                 <div id="samples-container"></div>
 
-                <div class="text-center pt-10 pb-32 no-print">
+                <div class="text-center pt-10 pb-32">
                     <button type="submit" id="submitBtn" class="btn-ayra px-16 py-6 rounded-sm text-[11px] shadow-xl uppercase flex items-center justify-center mx-auto gap-3">
-                        <i data-lucide="send" class="w-4 h-4"></i>
-                        Gerar PDF e Enviar para WhatsApp
+                        <i data-lucide="file-code" class="w-4 h-4"></i>
+                        Gerar Arquivo de Relatório HTML
                     </button>
-                    <p class="mt-4 text-[9px] text-gray-400 uppercase tracking-widest">Aguarde o processamento após o clique</p>
+                    <p class="mt-4 text-[9px] text-gray-400 uppercase tracking-widest">O formulário preenchido será baixado como um arquivo de página web</p>
                 </div>
             </form>
         </main>
     </div>
 
     <!-- Modal de Sucesso -->
-    <div id="successMessage" class="hidden fixed inset-0 bg-[#1B3B36]/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div class="bg-white p-12 rounded-sm max-w-md w-full text-center shadow-2xl border border-orange-600/20">
+    <div id="successModal" class="hidden fixed inset-0 bg-[#1B3B36]/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-8 md:p-12 rounded-sm max-w-lg w-full text-center shadow-2xl border border-orange-600/20">
             <div class="w-16 h-16 bg-[#1B3B36] text-white rounded-full flex items-center justify-center mx-auto mb-6">
-                <i data-lucide="check" class="w-8 h-8"></i>
+                <i data-lucide="download" class="w-8 h-8"></i>
             </div>
-            <h3 class="font-serif text-2xl mb-4 tracking-widest text-[#1B3B36] uppercase">PDF Gerado com Sucesso</h3>
-            <p class="text-gray-400 text-xs tracking-widest leading-relaxed mb-8 uppercase">
-                O arquivo foi baixado. Agora você será redirecionado para o WhatsApp para enviar o resumo e anexar o documento.
+            <h3 class="font-serif text-2xl mb-4 tracking-widest text-[#1B3B36] uppercase">Arquivo Gerado</h3>
+            <p class="text-gray-400 text-[10px] tracking-[0.2em] leading-relaxed mb-8 uppercase">
+                O relatório HTML foi baixado. Agora você pode enviá-lo como um arquivo no WhatsApp para o destinatário.
             </p>
-            <button onclick="window.location.reload()" class="btn-ayra w-full py-4 text-[10px]">RECOMEÇAR</button>
+            
+            <div class="grid grid-cols-1 gap-3">
+                <button id="whatsappBtn" class="btn-ayra w-full py-4 text-[10px] flex items-center justify-center gap-2">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i> IR PARA O WHATSAPP
+                </button>
+                <button onclick="window.location.reload()" class="text-[9px] text-gray-400 hover:text-[#1B3B36] tracking-widest uppercase py-2">Fazer nova avaliação</button>
+            </div>
         </div>
     </div>
 
@@ -115,61 +106,17 @@
         const WHATSAPP_NUMBER = "5562993540281";
 
         const samples = [
-            {
-                id: 1,
-                name: "Amostra 01",
-                nickname: "Jardim de Palmarosa",
-                family: "Aromático Frutado",
-                inspiration: "Uma caminhada matinal por um jardim cítrico, onde o frescor da palmarosa se une à doçura das frutas silvestres.",
-                notes: {
-                    topo: "Laranja Doce, Bergamota e Petitgrain",
-                    coracao: "Jabuticaba, Cereja e Palmarosa",
-                    fundo: "ISO E Super, Sândalo e Cumaru"
-                }
-            },
-            {
-                id: 2,
-                name: "Amostra 02",
-                nickname: "Brisa de Verão",
-                family: "Fougère Moderno",
-                inspiration: "A sensação revigorante do vento oceânico mesclada com notas verdes e um fundo levemente amendoado.",
-                notes: {
-                    topo: "Dihidromircenol, Melaleuca e Cítricos",
-                    coracao: "Hedione, Palmarosa e Jabuticaba",
-                    fundo: "ISO E Super, Galaxolide e Cumaru"
-                }
-            },
-            {
-                id: 3,
-                name: "Amostra 03",
-                nickname: "Luz de Cristal",
-                family: "Floral Radiante",
-                inspiration: "A pureza da luz refletida em pétalas brancas, trazendo uma aura de sofisticação e transparência cristalina.",
-                notes: {
-                    topo: "Hedione, Dihidromircenol e Piranol",
-                    coracao: "Jabuticaba, Cereja e Bergamota",
-                    fundo: "Ambroxan, ISO E Super e Sândalo"
-                }
-            },
-            {
-                id: 4,
-                name: "Amostra 04",
-                nickname: "Pomar Sofisticado",
-                family: "Floral Frutado Amadeirado",
-                inspiration: "O equilíbrio perfeito entre a vivacidade das frutas colhidas na hora e a elegância das madeiras nobres.",
-                notes: {
-                    topo: "Acetato de Linalila, Laranja e Bergamota",
-                    coracao: "Jabuticaba, Cereja e Piranol",
-                    fundo: "Patchouli, Sândalo e Ambroxan"
-                }
-            }
+            { id: 1, name: "Amostra 01", nickname: "Jardim de Palmarosa", inspiration: "Uma caminhada matinal por um jardim cítrico, onde o frescor da palmarosa se une à doçura das frutas silvestres.", notes: { topo: "Laranja Doce, Bergamota e Petitgrain", coracao: "Jabuticaba, Cereja e Palmarosa", fundo: "ISO E Super, Sândalo e Cumaru" } },
+            { id: 2, name: "Amostra 02", nickname: "Brisa de Verão", inspiration: "A sensação revigorante do vento oceânico mesclada com notas verdes e um fundo levemente amendoado.", notes: { topo: "Dihidromircenol, Melaleuca e Cítricos", coracao: "Hedione, Palmarosa e Jabuticaba", fundo: "ISO E Super, Galaxolide e Cumaru" } },
+            { id: 3, name: "Amostra 03", nickname: "Luz de Cristal", inspiration: "A pureza da luz refletida em pétalas brancas, trazendo uma aura de sofisticação e transparência cristalina.", notes: { topo: "Hedione, Dihidromircenol e Piranol", coracao: "Jabuticaba, Cereja e Bergamota", fundo: "Ambroxan, ISO E Super e Sândalo" } },
+            { id: 4, name: "Amostra 04", nickname: "Pomar Sofisticado", inspiration: "O equilíbrio perfeito entre a vivacidade das frutas colhidas na hora e a elegância das madeiras nobres.", notes: { topo: "Acetato de Linalila, Laranja e Bergamota", coracao: "Jabuticaba, Cereja e Piranol", fundo: "Patchouli, Sândalo e Ambroxan" } }
         ];
 
         function renderStars(sampleId, criteria, label) {
             let stars = `
                 <div class="flex items-center justify-between border-b border-black/5 py-4">
                     <span class="text-[10px] font-bold text-[#1B3B36] uppercase tracking-[0.2em]">${label}</span>
-                    <div class="flex flex-row-reverse star-rating">`;
+                    <div class="star-rating">`;
             for (let i = 5; i >= 1; i--) {
                 stars += `
                     <input type="radio" id="s${sampleId}-${criteria}-${i}" name="s${sampleId}-${criteria}" value="${i}" required>
@@ -180,11 +127,9 @@
         }
 
         const container = document.getElementById('samples-container');
-        
-        samples.forEach((s, index) => {
+        samples.forEach(s => {
             const section = document.createElement('section');
-            section.className = "sample-section animate-fade-in mb-16 pb-8";
-            
+            section.className = "mb-16 pb-8 border-b border-black/5 last:border-0";
             section.innerHTML = `
                 <div class="grid lg:grid-cols-12 gap-12 items-start">
                     <div class="lg:col-span-5 space-y-6">
@@ -193,12 +138,10 @@
                             <h2 class="font-serif text-4xl tracking-widest text-[#1B3B36] uppercase">${s.name}</h2>
                             <p class="font-serif italic text-gray-400 text-sm tracking-widest">${s.nickname}</p>
                         </div>
-                        
                         <div class="space-y-4">
                             <h4 class="text-[9px] font-bold tracking-[0.3em] uppercase opacity-50">Conceito & Inspiração</h4>
                             <p class="text-xs leading-relaxed text-gray-600 italic tracking-wide">"${s.inspiration}"</p>
                         </div>
-
                         <div class="composition-box p-6 space-y-4">
                             <h4 class="text-[9px] font-bold tracking-[0.3em] uppercase opacity-50">Pirâmide de Teste</h4>
                             <div class="space-y-3 text-[11px] tracking-widest uppercase leading-relaxed">
@@ -208,20 +151,17 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="lg:col-span-7 bg-white p-8 md:p-12 shadow-sm border border-black/5">
                         <h3 class="font-serif text-lg tracking-widest mb-8 uppercase text-center border-b pb-4">Parâmetros Técnicos</h3>
-                        
                         <div class="space-y-2 mb-8">
                             ${renderStars(s.id, 'cheiro', 'Aroma / Acorde')}
                             ${renderStars(s.id, 'fixacao', 'Longevidade (Fixação)')}
                             ${renderStars(s.id, 'projecao', 'Sillage (Projeção)')}
                         </div>
-
                         <div class="space-y-4">
                             <label class="text-[10px] font-bold text-[#1B3B36] uppercase tracking-[0.2em]">Memória Olfativa e Sensações</label>
-                            <textarea name="s${s.id}-feedback" rows="4" 
-                                class="w-full bg-[#FFFBF0] p-4 text-xs tracking-widest outline-none focus:border-[#1B3B36] transition-colors uppercase resize-none border border-transparent border-b-gray-200"
+                            <textarea name="s${s.id}-feedback" rows="4" required
+                                class="w-full bg-[#FFFBF0] p-4 text-xs tracking-widest outline-none border-b-gray-200 transition-colors uppercase resize-none border border-transparent focus:border-[#1B3B36]"
                                 placeholder="DESCREVA O QUE ESTA FRAGRÂNCIA EVOCA EM VOCÊ..."></textarea>
                         </div>
                     </div>
@@ -230,65 +170,74 @@
             container.appendChild(section);
         });
 
-        document.getElementById('perfumeForm').addEventListener('submit', async function(e) {
+        document.getElementById('perfumeForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="animate-spin" data-lucide="loader-2"></i> PROCESSANDO...';
-            lucide.createIcons();
-
             const formData = new FormData(this);
             const data = Object.fromEntries(formData);
+            
+            const dateStr = new Date().toLocaleDateString('pt-BR');
+            
+            // Construir o conteúdo do Relatório HTML estático
+            let reportHTML = `
+            <!DOCTYPE html>
+            <html lang="pt-br">
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body { font-family: 'Cinzel', serif; background: #FFFBF0; color: #1B3B36; padding: 40px; }
+                    .header { text-align: center; border-bottom: 1px solid #1B3B36; padding-bottom: 20px; margin-bottom: 40px; }
+                    .amostra { background: white; padding: 30px; margin-bottom: 30px; border: 1px solid #ddd; }
+                    .stars { color: #ea580c; font-size: 20px; }
+                    .label { font-size: 10px; font-weight: bold; text-transform: uppercase; color: #666; }
+                    .feedback { font-style: italic; background: #f9f9f9; padding: 15px; margin-top: 10px; border-left: 3px solid #1B3B36; }
+                    h1 { letter-spacing: 5px; text-transform: uppercase; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>Relatório Olfativo</h1>
+                    <p>Casa de Perfumaria Ayra | ${dateStr}</p>
+                </div>
+            `;
 
-            const element = document.getElementById('capture-area');
-            const opt = {
-                margin:       [15, 15, 15, 15],
-                filename:     'Avaliacao_Ayra_Amostras.pdf',
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { 
-                    scale: 2, 
-                    useCORS: true,
-                    letterRendering: true,
-                    scrollX: 0,
-                    scrollY: 0
-                },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-            };
+            samples.forEach(s => {
+                const aroma = data[`s${s.id}-cheiro`];
+                const fixacao = data[`s${s.id}-fixacao`];
+                const projecao = data[`s${s.id}-projecao`];
+                const feedback = data[`s${s.id}-feedback`];
 
-            try {
-                await html2pdf().set(opt).from(element).save();
+                reportHTML += `
+                <div class="amostra">
+                    <h2 style="margin-top:0">${s.name} - ${s.nickname}</h2>
+                    <p class="label">Notas Técnicas:</p>
+                    <p>Aroma: <span class="stars">${"★".repeat(aroma)}</span></p>
+                    <p>Fixação: <span class="stars">${"★".repeat(fixacao)}</span></p>
+                    <p>Projeção: <span class="stars">${"★".repeat(projecao)}</span></p>
+                    <p class="label">Memória Olfativa:</p>
+                    <div class="feedback">${feedback.toUpperCase()}</div>
+                </div>
+                `;
+            });
 
-                let message = `*AVALIAÇÃO DE FRAGRÂNCIAS - CASA AYRA*\n\n`;
-                samples.forEach(s => {
-                    const cheiro = data[`s${s.id}-cheiro`] || "N/A";
-                    const fixacao = data[`s${s.id}-fixacao`] || "N/A";
-                    const projecao = data[`s${s.id}-projecao`] || "N/A";
-                    
-                    message += `*${s.name} (${s.nickname})*\n`;
-                    message += `⭐ Aroma: ${cheiro}/5\n`;
-                    message += `⭐ Fixação: ${fixacao}/5\n`;
-                    message += `⭐ Projeção: ${projecao}/5\n\n`;
-                });
-                message += `_Estou enviando o PDF completo em anexo abaixo._`;
+            reportHTML += `</body></html>`;
 
-                const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+            // Gerar o Download do arquivo HTML
+            const blob = new Blob([reportHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Relatorio_Ayra_${dateStr.replace(/\//g, '-')}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
 
-                document.getElementById('successMessage').classList.remove('hidden');
-                
-                setTimeout(() => {
-                    window.open(whatsappUrl, '_blank');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Gerar PDF e Enviar para WhatsApp';
-                    lucide.createIcons();
-                }, 2000);
-
-            } catch (error) {
-                console.error("Erro ao gerar PDF:", error);
-                alert("Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.");
-                btn.disabled = false;
-                btn.innerHTML = 'Tentar Novamente';
-            }
+            // Preparar WhatsApp
+            let waMsg = `*RELATÓRIO DE AVALIAÇÃO OLFATIVA - CASA AYRA*\n\nOlá, acabei de gerar o relatório HTML das amostras. Estou enviando o arquivo em anexo nesta conversa.\n\nData: ${dateStr}`;
+            document.getElementById('whatsappBtn').onclick = () => window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(waMsg)}`, '_blank');
+            
+            // Mostrar Modal
+            document.getElementById('successModal').classList.remove('hidden');
+            lucide.createIcons();
         });
 
         window.onload = () => lucide.createIcons();
