@@ -120,6 +120,7 @@
                 name: "Amostra 01",
                 nickname: "Jardim de Palmarosa",
                 family: "Aromático Frutado",
+                inspiration: "Uma caminhada matinal por um jardim cítrico, onde o frescor da palmarosa se une à doçura das frutas silvestres.",
                 notes: {
                     topo: "Laranja Doce, Bergamota e Petitgrain",
                     coracao: "Jabuticaba, Cereja e Palmarosa",
@@ -131,6 +132,7 @@
                 name: "Amostra 02",
                 nickname: "Brisa de Verão",
                 family: "Fougère Moderno",
+                inspiration: "A sensação revigorante do vento oceânico mesclada com notas verdes e um fundo levemente amendoado.",
                 notes: {
                     topo: "Dihidromircenol, Melaleuca e Cítricos",
                     coracao: "Hedione, Palmarosa e Jabuticaba",
@@ -142,6 +144,7 @@
                 name: "Amostra 03",
                 nickname: "Luz de Cristal",
                 family: "Floral Radiante",
+                inspiration: "A pureza da luz refletida em pétalas brancas, trazendo uma aura de sofisticação e transparência cristalina.",
                 notes: {
                     topo: "Hedione, Dihidromircenol e Piranol",
                     coracao: "Jabuticaba, Cereja e Bergamota",
@@ -153,6 +156,7 @@
                 name: "Amostra 04",
                 nickname: "Pomar Sofisticado",
                 family: "Floral Frutado Amadeirado",
+                inspiration: "O equilíbrio perfeito entre a vivacidade das frutas colhidas na hora e a elegância das madeiras nobres.",
                 notes: {
                     topo: "Acetato de Linalila, Laranja e Bergamota",
                     coracao: "Jabuticaba, Cereja e Piranol",
@@ -179,7 +183,6 @@
         
         samples.forEach((s, index) => {
             const section = document.createElement('section');
-            // Adicionamos a classe sample-section para evitar quebras no meio do card
             section.className = "sample-section animate-fade-in mb-16 pb-8";
             
             section.innerHTML = `
@@ -191,6 +194,11 @@
                             <p class="font-serif italic text-gray-400 text-sm tracking-widest">${s.nickname}</p>
                         </div>
                         
+                        <div class="space-y-4">
+                            <h4 class="text-[9px] font-bold tracking-[0.3em] uppercase opacity-50">Conceito & Inspiração</h4>
+                            <p class="text-xs leading-relaxed text-gray-600 italic tracking-wide">"${s.inspiration}"</p>
+                        </div>
+
                         <div class="composition-box p-6 space-y-4">
                             <h4 class="text-[9px] font-bold tracking-[0.3em] uppercase opacity-50">Pirâmide de Teste</h4>
                             <div class="space-y-3 text-[11px] tracking-widest uppercase leading-relaxed">
@@ -232,7 +240,6 @@
             const formData = new FormData(this);
             const data = Object.fromEntries(formData);
 
-            // 1. Gerar o PDF com configurações aprimoradas para múltiplas páginas
             const element = document.getElementById('capture-area');
             const opt = {
                 margin:       [15, 15, 15, 15],
@@ -246,15 +253,12 @@
                     scrollY: 0
                 },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                // Configuração CRÍTICA para evitar cortes
                 pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
             };
 
             try {
-                // Geramos o PDF
                 await html2pdf().set(opt).from(element).save();
 
-                // 2. Criar mensagem de resumo para o WhatsApp
                 let message = `*AVALIAÇÃO DE FRAGRÂNCIAS - CASA AYRA*\n\n`;
                 samples.forEach(s => {
                     const cheiro = data[`s${s.id}-cheiro`] || "N/A";
@@ -270,7 +274,6 @@
 
                 const whatsappUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 
-                // 3. Mostrar sucesso e redirecionar
                 document.getElementById('successMessage').classList.remove('hidden');
                 
                 setTimeout(() => {
